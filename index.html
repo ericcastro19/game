@@ -1,0 +1,207 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jogo com Cachorro</title>
+  <style>
+    body, html {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #87CEEB;
+    }
+    canvas {
+      border: 1px solid #000;
+      background-color: #A3D977; /* Cenário verde */
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="800" height="400"></canvas>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Variáveis globais
+    let character, obstacles, clouds, score, lastScore, obstacleTimer, cloudTimer;
+
+    // Função para inicializar o jogo
+    function initializeGame() {
+      // Configurações do personagem
+      character = {
+        x: 50,
+        y: 300,
+        width: 40,
+        height: 20,
+        dy: 0,
+        gravity: 0.4, // Gravidade ajustada para um salto suave
+        jumpStrength: -15, // Aumenta a altura do salto
+        isJumping: false,
+      };
+
+      // Configurações dos obstáculos e nuvens
+      obstacles = [];
+      clouds = [];
+      obstacleTimer = 0;
+      cloudTimer = 0;
+      score = 0;
+      lastScore = lastScore || 0; // Mantém o último score entre reinicializações
+    }
+
+    // Função de pulo
+    function jump() {
+      if (!character.isJumping) {
+        character.dy = character.jumpStrength;
+        character.isJumping = true;
+      }
+    }
+
+    // Função para criar obstáculos
+    function createObstacle() {
+      obstacles.push({
+        x: canvas.width,
+        y: 320,
+        width: 30 + Math.random() * 20, // Largura variável para simular diferentes obstáculos
+        height: 30 + Math.random() * 20, // Altura variável
+      });
+    }
+
+    // Função para criar nuvens mais realistas
+    function createCloud() {
+      clouds.push({
+        x: canvas.width,
+        y: Math.random() * 100 + 20, // Altura variável para as nuvens
+        size: 20 + Math.random() * 20, // Tamanho base da nuvem
+        speed: Math.random() * 1 + 0.5, // Velocidade de movimento variável
+      });
+    }
+
+    // Função para desenhar nuvens realistas
+    function drawCloud(x, y, size) {
+      ctx.fillStyle = 'white';
+      ctx.beginPath();
+      ctx.arc(x, y, size, 0, Math.PI * 2, true);
+      ctx.arc(x + size * 0.8, y, size * 0.6, 0, Math.PI * 2, true);
+      ctx.arc(x - size * 0.8, y, size * 0.6, 0, Math.PI * 2, true);
+      ctx.arc(x, y - size * 0.5, size * 0.7, 0, Math.PI * 2, true);
+      ctx.fill();
+    }
+
+    // Função para desenhar o personagem como um cachorro
+    function drawDog() {
+      ctx.fillStyle = '#8B4513'; // Cor marrom para o corpo do cachorro
+      ctx.fillRect(character.x, character.y, character.width, character.height); // Corpo alongado
+
+      // Cabeça do cachorro
+      ctx.fillStyle = '#D2B48C'; // Cor mais clara para a cabeça
+      ctx.beginPath();
+      ctx.arc(character.x + character.width, character.y + character.height / 2, character.height / 1.5, 0, Math.PI * 2); // Cabeça
+      ctx.fill();
+
+      // Orelhas do cachorro
+      ctx.fillStyle = '#8B4513';
+      ctx.beginPath();
+      ctx.arc(character.x + character.width - 5, character.y + 3, character.height / 4, 0, Math.PI * 2); // Orelha direita
+      ctx.arc(character.x + character.width - 5, character.y + character.height - 3, character.height / 4, 0, Math.PI * 2); // Orelha esquerda
+      ctx.fill();
+    }
+
+    // Função para desenhar obstáculos como pedras
+    function drawObstacle(obstacle) {
+      ctx.fillStyle = '#8B4513'; // Cor marrom para as pedras
+      ctx.beginPath();
+      ctx.arc(obstacle.x, obstacle.y - obstacle.height / 2, obstacle.width / 2, 0, Math.PI * 2); // Forma arredondada de pedra
+      ctx.fill();
+    }
+
+    // Função de atualização do jogo
+    function update() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Desenhar nuvens
+      clouds.forEach((cloud, index) => {
+        cloud.x -= cloud.speed; // Movimento para a esquerda
+        drawCloud(cloud.x, cloud.y, cloud.size);
+
+        // Remover nuvens que saíram da tela
+        if (cloud.x + cloud.size < 0) {
+          clouds.splice(index, 1);
+        }
+      });
+
+      // Gerar novas nuvens periodicamente
+      if (cloudTimer++ > 150) { // Intervalo maior para nuvens
+        createCloud();
+        cloudTimer = 0;
+      }
+
+      // Desenhar o personagem como cachorro
+      drawDog();
+
+      // Aplicar gravidade
+      character.y += character.dy;
+      character.dy += character.gravity;
+
+      // Evitar cair do chão
+      if (character.y + character.height > 340) {
+        character.y = 340 - character.height;
+        character.isJumping = false;
+      }
+
+      // Gerar novos obstáculos
+      if (obstacleTimer++ > 100) {  // Obstáculos a cada 100 quadros
+        createObstacle();
+        obstacleTimer = 0;
+      }
+
+      // Atualizar e desenhar obstáculos
+      obstacles.forEach((obstacle, index) => {
+        obstacle.x -= 3; // Mover obstáculos para a esquerda
+        drawObstacle(obstacle); // Desenhar o obstáculo como uma pedra
+
+        // Verificar colisão
+        if (
+          character.x < obstacle.x + obstacle.width &&
+          character.x + character.width > obstacle.x &&
+          character.y < obstacle.y &&
+          character.y + character.height > obstacle.y - obstacle.height
+        ) {
+          lastScore = score; // Atualizar a última pontuação ao colidir
+          initializeGame(); // Reiniciar o jogo
+          alert(`Fim de Jogo! Sua pontuação foi: ${score}`);
+        }
+
+        // Remover obstáculos que saíram da tela
+        if (obstacle.x + obstacle.width < 0) {
+          obstacles.splice(index, 1);
+          score++;
+        }
+      });
+
+      // Atualizar pontuação e última pontuação
+      ctx.fillStyle = 'black';
+      ctx.font = '20px Arial';
+      ctx.fillText(`Pontuação: ${score}`, 10, 20);
+      ctx.fillText(`Última Pontuação: ${lastScore}`, 10, 50);
+
+      requestAnimationFrame(update);
+    }
+
+    // Controle de pulo com a seta para cima
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowUp') {
+        jump();
+      }
+    });
+
+    // Iniciar o jogo
+    initializeGame();
+    update();
+  </script>
+</body>
+</html>
